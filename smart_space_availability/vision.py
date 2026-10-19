@@ -37,7 +37,8 @@ class OccupancyAnalyzer:
         centers: list[tuple[int, int]] = []
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes = result.boxes.xyxy.cpu().numpy().astype(int)
-            centers = [((x1 + x2) // 2, (y1 + y2) // 2) for x1, y1, x2, y2 in boxes]
+            # OpenCV 5 requires native Python numbers for pointPolygonTest arguments.
+            centers = [(int((x1 + x2) // 2), int((y1 + y2) // 2)) for x1, y1, x2, y2 in boxes]
 
         summaries = []
         for zone in zones:

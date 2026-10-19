@@ -24,6 +24,11 @@
 - Python compilation passed for the application package and API modules.
 - The current environment does not have the runtime dependencies installed, so the Streamlit UI and model inference still require a local dependency installation.
 
+### Compatibility fix
+
+- Fixed OpenCV 5 `pointPolygonTest` compatibility by converting NumPy coordinate values to native Python integers.
+- Added `lap` to `requirements.txt` so Ultralytics tracking dependencies are installed before runtime.
+
 ### Handoff
 
 - Added `README.md` with setup, run, and zone-configuration instructions.
