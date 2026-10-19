@@ -1,6 +1,6 @@
 # Smart Space Availability POC
 
-A local, cost-free occupancy estimation demo using a laptop webcam or uploaded video, Ultralytics YOLO, OpenCV, FastAPI, and Streamlit.
+A local, cost-free occupancy estimation demo using a laptop webcam or uploaded video, Ultralytics YOLO, headless OpenCV, FastAPI, and Streamlit.
 
 ## Run locally
 

@@ -28,6 +28,7 @@
 
 - Fixed OpenCV 5 `pointPolygonTest` compatibility by converting NumPy coordinate values to native Python integers.
 - Added `lap` to `requirements.txt` so Ultralytics tracking dependencies are installed before runtime.
+- Replaced `opencv-python` with `opencv-python-headless` for Streamlit Cloud compatibility.
 
 ### Handoff
 
