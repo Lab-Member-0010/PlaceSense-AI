@@ -1,0 +1,19 @@
+# Python environments and generated files
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local configuration and secrets
+.env
+.env.*
+
+# Ultralytics model weights, runs, and local settings
+*.pt
+*.onnx
+runs/
+ultralytics/
+
+# Streamlit and OS files
+.streamlit/secrets.toml
+.DS_Store
