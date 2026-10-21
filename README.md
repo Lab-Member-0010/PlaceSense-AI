@@ -29,12 +29,12 @@ The first run may download the small `yolo11n.pt` model. This is the only model 
 ## Try it
 
 1. Start the application.
-2. Leave the default zone configuration in the sidebar.
-3. Stand in the central zone shown by the application.
-4. Click **Start analysis**.
-5. Adjust `capacity` in the zone JSON to represent the space being tested.
+2. Choose **Upload a video** in the sidebar for a cloud demo.
+3. Upload a short MP4, AVI, MOV, or MKV clip.
+4. Set the zone name, capacity, and rectangle position using the simple controls.
+5. Click **Start analysis**.
 
-You can also upload an MP4/AVI/MOV/MKV video instead of using camera index `0`.
+For a local run, choose **Use local webcam**. The webcam must be connected to the computer running Streamlit.
 
 ## Zone configuration
 

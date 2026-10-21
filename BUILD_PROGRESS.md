@@ -30,6 +30,14 @@
 - Added `lap` to `requirements.txt` so Ultralytics tracking dependencies are installed before runtime.
 - Replaced `opencv-python` with `opencv-python-headless` for Streamlit Cloud compatibility.
 
+### UX improvement — 2026-10-21
+
+- Made uploaded-video analysis the clear default for cloud demos.
+- Added a friendly single-zone rectangle editor with name, capacity, position, and size controls.
+- Kept advanced multi-zone JSON available behind an explicit advanced option.
+- Added clearer input status, setup guidance, cloud webcam warning, and disabled start state until a video is selected.
+- Added a tooltip explaining why **Start analysis** is disabled before a video is uploaded.
+
 ### Handoff
 
 - Added `README.md` with setup, run, and zone-configuration instructions.
