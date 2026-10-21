@@ -29,23 +29,39 @@ class OccupancyAnalyzer:
     def _point_in_polygon(point: tuple[int, int], polygon: np.ndarray) -> bool:
         return cv2.pointPolygonTest(polygon, point, False) >= 0
 
-    def analyze(self, frame: np.ndarray, zones: list[dict[str, Any]], confidence: float = 0.35) -> tuple[np.ndarray, list[dict[str, Any]], int]:
-        """Analyze one frame and return annotated frame, zone summaries, and total people."""
-        result = self.model.track(frame, persist=True, classes=[0], conf=confidence, verbose=False)[0]
+    def analyze(
+        self,
+        frame: np.ndarray,
+        zones: list[dict[str, Any]],
+        confidence: float = 0.35,
+        object_classes: list[int] | None = None,
+    ) -> tuple[np.ndarray, list[dict[str, Any]], int]:
+        """Analyze one frame and return annotated frame, zone summaries, and total objects."""
+        selected_classes = object_classes or [0]
+        result = self.model.track(frame, persist=True, classes=selected_classes, conf=confidence, verbose=False)[0]
         annotated = result.plot()
         height, width = frame.shape[:2]
         centers: list[tuple[int, int]] = []
+        detected_names: list[str] = []
         if result.boxes is not None and result.boxes.xyxy is not None:
             boxes = result.boxes.xyxy.cpu().numpy().astype(int)
             # OpenCV 5 requires native Python numbers for pointPolygonTest arguments.
             centers = [(int((x1 + x2) // 2), int((y1 + y2) // 2)) for x1, y1, x2, y2 in boxes]
+            class_ids = result.boxes.cls.cpu().numpy().astype(int).tolist() if result.boxes.cls is not None else []
+            names = self.model.names
+            detected_names = [str(names[class_id] if isinstance(names, list) else names.get(class_id, class_id)) for class_id in class_ids]
 
         summaries = []
         for zone in zones:
             polygon = np.array([[int(x * width), int(y * height)] for x, y in zone["points"]], dtype=np.int32)
-            count = sum(self._point_in_polygon(center, polygon) for center in centers)
+            inside_indices = [index for index, center in enumerate(centers) if self._point_in_polygon(center, polygon)]
+            count = len(inside_indices)
+            by_class: dict[str, int] = {}
+            for index in inside_indices:
+                object_name = detected_names[index]
+                by_class[object_name] = by_class.get(object_name, 0) + 1
             status, occupancy, available = occupancy_status(count, zone["capacity"])
-            summaries.append({"name": zone["name"], "count": count, "capacity": zone["capacity"], "status": status, "occupancy": occupancy, "available": available})
+            summaries.append({"name": zone["name"], "count": count, "capacity": zone["capacity"], "status": status, "occupancy": occupancy, "available": available, "by_class": by_class})
             color = (0, 180, 0) if status == "Available" else (0, 165, 255) if status == "Moderate" else (0, 0, 220)
             cv2.polylines(annotated, [polygon], True, color, 3)
             label = f"{zone['name']}: {count}/{zone['capacity']} ({status})" if zone["capacity"] else f"{zone['name']}: {count} ({status})"

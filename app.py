@@ -17,6 +17,16 @@ from smart_space_availability.vision import OccupancyAnalyzer
 ROOT = Path(__file__).parent
 DEFAULT_ZONES = (ROOT / "zones.json").read_text(encoding="utf-8")
 VIDEO_TYPES = ["mp4", "avi", "mov", "mkv"]
+OBJECT_OPTIONS = {
+    "Person": 0,
+    "Bicycle": 1,
+    "Car": 2,
+    "Motorcycle": 3,
+    "Bus": 5,
+    "Truck": 7,
+    "Chair": 56,
+    "Dining table": 60,
+}
 
 
 @st.cache_resource
@@ -32,7 +42,7 @@ def simple_rectangle_zone(name: str, capacity: int, x: float, y: float, width: f
     return [{"name": name.strip() or "Main Area", "capacity": capacity, "points": [[x, y], [right, y], [right, bottom], [x, bottom]]}]
 
 
-def process_stream(source: Any, analyzer: OccupancyAnalyzer, zones: list[dict[str, Any]], confidence: float, frame_placeholder: Any, metric_placeholder: Any, max_seconds: int) -> None:
+def process_stream(source: Any, analyzer: OccupancyAnalyzer, zones: list[dict[str, Any]], confidence: float, object_classes: list[int], frame_placeholder: Any, metric_placeholder: Any, max_seconds: int) -> None:
     """Process a webcam or video file until it ends or reaches the time limit."""
     capture = cv2.VideoCapture(source)
     if not capture.isOpened():
@@ -46,12 +56,12 @@ def process_stream(source: Any, analyzer: OccupancyAnalyzer, zones: list[dict[st
             ok, frame = capture.read()
             if not ok:
                 break
-            annotated, summaries, total_people = analyzer.analyze(frame, zones, confidence)
+            annotated, summaries, total_objects = analyzer.analyze(frame, zones, confidence, object_classes)
             frame_placeholder.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
             frames += 1
             elapsed = max(time.time() - started, 0.001)
             with metric_placeholder.container():
-                st.caption(f"{frames / elapsed:.1f} FPS · {total_people} people detected in the latest frame")
+                st.caption(f"{frames / elapsed:.1f} FPS · {total_objects} selected objects detected in the latest frame")
                 columns = st.columns(min(len(summaries), 4))
                 for column, summary in zip(columns, summaries):
                     with column:
@@ -59,12 +69,15 @@ def process_stream(source: Any, analyzer: OccupancyAnalyzer, zones: list[dict[st
                         if summary["available"] is not None:
                             st.write(f"Available: **{summary['available']} / {summary['capacity']}**")
                         st.write(f"Status: **{summary['status']}**")
+                        if summary["by_class"]:
+                            breakdown = " · ".join(f"{name}: {count}" for name, count in sorted(summary["by_class"].items()))
+                            st.caption(breakdown)
         st.success("Analysis complete. You can change the settings and run it again.")
     finally:
         capture.release()
 
 
-def sidebar_configuration() -> tuple[str, str, list[dict[str, Any]], float, int, Any]:
+def sidebar_configuration() -> tuple[str, str, list[dict[str, Any]], float, int, Any, list[int]]:
     """Render controls and return the selected analysis configuration."""
     with st.sidebar:
         st.header("1. Choose input")
@@ -93,8 +106,18 @@ def sidebar_configuration() -> tuple[str, str, list[dict[str, Any]], float, int,
             confidence = st.slider("Detection confidence", 0.05, 0.95, 0.35, 0.05)
             max_seconds = st.slider("Maximum run time (seconds)", 10, 300, 60, 10)
 
+        selected_objects = st.multiselect(
+            "Objects to detect",
+            options=list(OBJECT_OPTIONS),
+            default=["Person"],
+            help="Choose what counts toward the zone total. The default YOLO model supports these common COCO categories.",
+        )
+        object_classes = [OBJECT_OPTIONS[name] for name in selected_objects]
+        if not object_classes:
+            st.warning("Select at least one object type before starting analysis.")
+
         uploaded = st.file_uploader("Video file", type=VIDEO_TYPES) if source_mode == "Upload a video" else None
-    return source_mode, model_name, zones, confidence, max_seconds, uploaded
+    return source_mode, model_name, zones, confidence, max_seconds, uploaded, object_classes
 
 
 def main() -> None:
@@ -112,7 +135,7 @@ def main() -> None:
         The result is an estimate based on detected people. It does not detect actual seats, tables, or parking slots yet.
         """)
 
-    source_mode, model_name, zones, confidence, max_seconds, uploaded = sidebar_configuration()
+    source_mode, model_name, zones, confidence, max_seconds, uploaded, object_classes = sidebar_configuration()
 
     if source_mode == "Upload a video":
         if uploaded is None:
@@ -125,18 +148,23 @@ def main() -> None:
     st.divider()
     frame_placeholder = st.empty()
     metric_placeholder = st.empty()
-    can_start = uploaded is not None if source_mode == "Upload a video" else True
-    start_help = None if can_start else "Upload a video in the sidebar first. The analysis button becomes available when a video is ready."
+    can_start = bool(object_classes) and (uploaded is not None if source_mode == "Upload a video" else True)
+    if not object_classes:
+        start_help = "Select at least one object type in the sidebar."
+    elif uploaded is None and source_mode == "Upload a video":
+        start_help = "Upload a video in the sidebar first. The analysis button becomes available when a video is ready."
+    else:
+        start_help = None
     if st.button("Start analysis", type="primary", disabled=not can_start, help=start_help, use_container_width=True):
         with st.spinner("Loading the vision model and analyzing the video..."):
             analyzer = load_analyzer(model_name)
             if source_mode == "Use local webcam":
-                process_stream(0, analyzer, zones, confidence, frame_placeholder, metric_placeholder, max_seconds)
+                process_stream(0, analyzer, zones, confidence, object_classes, frame_placeholder, metric_placeholder, max_seconds)
             else:
                 with tempfile.NamedTemporaryFile(suffix=Path(uploaded.name).suffix, delete=True) as temp_file:
                     temp_file.write(uploaded.getbuffer())
                     temp_file.flush()
-                    process_stream(temp_file.name, analyzer, zones, confidence, frame_placeholder, metric_placeholder, max_seconds)
+                    process_stream(temp_file.name, analyzer, zones, confidence, object_classes, frame_placeholder, metric_placeholder, max_seconds)
 
     st.divider()
     st.caption("POC estimate only. Do not use this application for medical, safety, access-control, or identity decisions.")

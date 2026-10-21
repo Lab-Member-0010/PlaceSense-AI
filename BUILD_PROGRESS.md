@@ -37,6 +37,8 @@
 - Kept advanced multi-zone JSON available behind an explicit advanced option.
 - Added clearer input status, setup guidance, cloud webcam warning, and disabled start state until a video is selected.
 - Added a tooltip explaining why **Start analysis** is disabled before a video is uploaded.
+- Added selectable object detection for people, bicycles, cars, motorcycles, buses, trucks, chairs, and dining tables.
+- Added per-zone object breakdowns so the UI shows which categories contribute to each count.
 
 ### Handoff
 
